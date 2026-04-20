@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: security-app
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}    # Gmail App Password — not login password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    dynamic: true
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/security-app?currentSchema=public
+    username: postgres
+    password: lenin
+    driver-class-name: org.postgresql.Driver
+  sql:
+    init:
+      mode: never
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Kolkata
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  jackson:
+    time-zone: Asia/Kolkata
+
+app:
+  mail:
+    from: vkleninkumar@gmail.com
+    base-url: http://localhost:8080
+  jwt:
+    secret: your-256-bit-base64-encoded-secret-key-here-make-it-long
+    expiration: 900000        # 15 mins
+    refresh-expiration: 604800000  # 7 days in ms
+
+  rabbitmq:
+    exchange: email.exchange
+    queues:
+      verification: email.verification.queue
+      reset: email.reset.queue
+      welcome: email.welcome.queue
+      dead: email.dead.queue
+    routing-keys:
+      verification: email.verification
+      reset: email.reset
+      welcome: email.welcome
+
+server:
+  port: 8080
