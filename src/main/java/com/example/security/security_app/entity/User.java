@@ -31,7 +31,7 @@ public class User {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    // ─── Identity ─────────────────────────────────────────
+    // Identity
     @Column(name = "username", nullable = false, unique = true, length = 50)
     private String username;
 
@@ -41,14 +41,14 @@ public class User {
     @Column(name = "password", nullable = false)
     private String password;  // BCrypt hashed — never plain text
 
-    // ─── Profile ──────────────────────────────────────────
+    // Profile
     @Column(name = "first_name", nullable = false, length = 50)
     private String firstName;
 
     @Column(name = "last_name", nullable = false, length = 50)
     private String lastName;
 
-    // ─── Roles & Permissions ──────────────────────────────
+    // Roles & Permissions
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
             name = "user_roles",
@@ -57,7 +57,7 @@ public class User {
     @Column(name = "role")
     private Set<String> roles = new HashSet<>();
 
-    // ─── Account Status ───────────────────────────────────
+    // Account Status
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
@@ -74,7 +74,7 @@ public class User {
     @Builder.Default
     private Boolean isDeleted = false;    // soft delete
 
-    // ─── Security ─────────────────────────────────────────
+    // Security
     @Column(name = "failed_attempt", nullable = false)
     @Builder.Default
     private Integer failedAttempt = 0;   // brute force protection
@@ -88,21 +88,21 @@ public class User {
     @Column(name = "password_changed_at")
     private LocalDateTime passwordChangedAt;
 
-    // ─── Email Verification ───────────────────────────────
+    // Email Verification
     @Column(name = "verification_token")
     private String verificationToken;
 
     @Column(name = "verification_token_expiry")
     private LocalDateTime verificationTokenExpiry;
 
-    // ─── Password Reset ───────────────────────────────────
+    // Password Reset
     @Column(name = "reset_token")
     private String resetToken;
 
     @Column(name = "reset_token_expiry")
     private LocalDateTime resetTokenExpiry;
 
-    // ─── Audit ────────────────────────────────────────────
+    // Audit
     @CreatedBy
     @Column(name = "created_by", updatable = false)
     private String createdBy;

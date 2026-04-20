@@ -23,9 +23,9 @@ spring:
     dynamic: true
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/security-app?currentSchema=public
-    username: postgres
-    password: lenin
+    url: ${POSTGRES_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSSWORD}
     driver-class-name: org.postgresql.Driver
   sql:
     init:
@@ -44,10 +44,10 @@ spring:
 
 app:
   mail:
-    from: vkleninkumar@gmail.com
+    from: ${MAIL_USERNAME}
     base-url: http://localhost:8080
   jwt:
-    secret: your-256-bit-base64-encoded-secret-key-here-make-it-long
+    secret: ${JWT_SECRET_KEY}
     expiration: 900000        # 15 mins
     refresh-expiration: 604800000  # 7 days in ms
 

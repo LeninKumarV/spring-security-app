@@ -3,8 +3,6 @@ package com.example.security.security_app.controllers;
 import com.example.security.security_app.models.NoteVO;
 import com.example.security.security_app.service.NotesService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;

@@ -24,7 +24,6 @@ public class EmailService {
     @Value("${app.mail.base-url}")
     private String baseUrl;
 
-    // ─── Send Verification Email ──────────────────────────
     public void sendVerificationEmail(String toEmail,
                                       String username,
                                       String token) {
@@ -41,7 +40,6 @@ public class EmailService {
         log.info("Verification email sent to: {}", toEmail);
     }
 
-    // ─── Send Password Reset Email ────────────────────────
     public void sendPasswordResetEmail(String toEmail,
                                        String username,
                                        String token) {
@@ -58,7 +56,6 @@ public class EmailService {
         log.info("Password reset email sent to: {}", toEmail);
     }
 
-    // ─── Send Welcome Email ───────────────────────────────
     public void sendWelcomeEmail(String toEmail, String username) {
         String subject = "Welcome to the platform!";
         String body    = templateService.buildWelcomeEmail(username);
@@ -72,7 +69,6 @@ public class EmailService {
         log.info("Welcome email sent to: {}", toEmail);
     }
 
-    // ─── Core Send Method ─────────────────────────────────
     private void sendEmail(EmailRequest request) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

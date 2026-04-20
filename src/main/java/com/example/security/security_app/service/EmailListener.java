@@ -17,19 +17,16 @@ public class EmailListener {
     @RabbitListener(queues = "${app.rabbitmq.queues.verification}")
     public void handleVerification(EmailRequest message) {
         log.info("Verification email received for: {}", message.getTo());
-        // call your EmailService here
     }
 
     @RabbitListener(queues = "${app.rabbitmq.queues.reset}")
     public void handleReset(EmailRequest message) {
         log.info("Password reset email received for: {}", message.getTo());
-        // call your EmailService here
     }
 
     @RabbitListener(queues = "${app.rabbitmq.queues.welcome}")
     public void handleWelcome(EmailRequest message) {
         log.info("Welcome email received for: {}", message.getTo());
-        // call your EmailService here
         try{
             emailService.sendWelcomeEmail(message.getTo(), message.getUsername());
         }
