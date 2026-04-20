@@ -49,7 +49,7 @@ public class UserSecurityContextFilter extends OncePerRequestFilter {
 
                 Claims claims = parseClaims(token); // parse once, reuse
 
-                // ─── 1. Build UserContext ─────────────────
+                // Build UserContext
                 UserContext ctx = UserContext.builder()
                         .userName(extractUsername(claims))
                         .token(token)
@@ -59,14 +59,14 @@ public class UserSecurityContextFilter extends OncePerRequestFilter {
                         .rolesList(extractRoles(claims))
                         .build();
 
-                // ─── 2. Store in ThreadLocal ──────────────
+                // Store in ThreadLocal
                 UserContext.set(ctx);
 
-                // ─── 3. MDC for log tracing ───────────────
+                //  MDC for log tracing
                 MDC.put("userName", ctx.getUserName());
                 MDC.put("requestId", ctx.getRequestId());
 
-                // ─── 4. Set Spring Security context ──────
+                // Set Spring Security context
                 setSpringSecurityContext(ctx, request);
 
                 log.info("User authenticated successfully");

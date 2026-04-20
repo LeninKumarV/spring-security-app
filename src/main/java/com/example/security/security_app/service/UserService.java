@@ -34,6 +34,7 @@ public class UserService {
 
     public UserResponse getCurrentUser() {
         String username = UserContext.get().getUserName();
+        log.info("Found the current user");
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
         return toResponse(user);
