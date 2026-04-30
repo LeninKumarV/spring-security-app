@@ -21,4 +21,7 @@ public class EmailMessage implements Serializable {
     private EmailType emailType;
     private String    requestId;
     private LocalDateTime createdAt;
+    private String tempPassword;
+    private String    invitedBy;
+    private String    emailExpiry;
 }

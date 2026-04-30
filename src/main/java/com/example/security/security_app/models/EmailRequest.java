@@ -14,4 +14,5 @@ public class EmailRequest {
     private String subject;
     private String body;
     private String username;
+    private String token;
 }

@@ -58,10 +58,17 @@ app:
       reset: email.reset.queue
       welcome: email.welcome.queue
       dead: email.dead.queue
+      invite: email.invite.queue
     routing-keys:
       verification: email.verification
       reset: email.reset
       welcome: email.welcome
+      invite: email.invite
+
+  admin:
+    email: ${ADMIN_EMAIL}
+    username: ${ADMIN_USERNAME}
+    password: ${ADMIN_PASSWORD}
 
 server:
   port: 8080

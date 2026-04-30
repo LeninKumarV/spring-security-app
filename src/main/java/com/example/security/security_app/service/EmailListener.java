@@ -1,5 +1,6 @@
 package com.example.security.security_app.service;
 
+import com.example.security.security_app.models.EmailMessage;
 import com.example.security.security_app.models.EmailRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,8 +16,14 @@ public class EmailListener {
     private final EmailService  emailService;
 
     @RabbitListener(queues = "${app.rabbitmq.queues.verification}")
-    public void handleVerification(EmailRequest message) {
-        log.info("Verification email received for: {}", message.getTo());
+    public void handleVerification(EmailMessage message) {
+        try{
+            log.info("Verification email received for: {}", message.getToEmail());
+            emailService.sendVerificationEmail(message.getToEmail(), message.getUsername(), message.getToken(), message.getEmailExpiry());
+        }
+        catch (Exception e){
+            log.info("Got error while verify the invite user : {} {}", message.getToEmail(), e.getMessage());
+        }
     }
 
     @RabbitListener(queues = "${app.rabbitmq.queues.reset}")
@@ -32,6 +39,22 @@ public class EmailListener {
         }
         catch (Exception e){
             log.info("Got error while received welcome email : {} {}", message.getTo(), e.getMessage());
+        }
+    }
+
+    // Consume Invite Queue
+    @RabbitListener(queues = "${app.rabbitmq.queues.invite}")
+    public void consumeInviteEmail(EmailMessage message) {
+        log.info("Consuming invite email for: {} [requestId={}]",
+                message.getToEmail(), message.getRequestId());
+        try {
+            emailService.sendInviteUserEmail(message);
+            log.info("Invite email sent to: {}", message.getToEmail());
+
+        } catch (Exception e) {
+            log.error("Failed to send invite email to {}: {}",
+                    message.getToEmail(), e.getMessage());
+            throw e; // triggers retry → dead letter
         }
     }
 

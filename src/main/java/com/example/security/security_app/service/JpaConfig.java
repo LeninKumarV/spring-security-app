@@ -1,5 +1,6 @@
 package com.example.security.security_app.service;
 
+import com.example.security.security_app.models.UserContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
@@ -16,6 +17,12 @@ public class JpaConfig {
     @Bean
     public AuditorAware<String> auditorAware() {
         return () -> {
+
+            UserContext ctx = UserContext.get();
+            if (ctx != null && ctx.getUserName() != null) {
+                return Optional.of(ctx.getUserName());
+            }
+
             Authentication auth = SecurityContextHolder
                     .getContext()
                     .getAuthentication();

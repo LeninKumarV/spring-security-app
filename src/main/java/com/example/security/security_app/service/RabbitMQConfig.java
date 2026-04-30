@@ -59,6 +59,16 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue inviteQueue() {
+        return QueueBuilder.durable(props.getQueues().getInvite())
+                .withArgument("x-dead-letter-exchange",
+                        props.getExchange() + ".dlx")
+                .withArgument("x-dead-letter-routing-key",
+                        props.getRoutingKeys().getInvite() + ".dead")
+                .build();
+    }
+
+    @Bean
     public Queue deadLetterQueue() {
         return QueueBuilder.durable(props.getExchange() + ".dead.queue").build();
     }
@@ -90,4 +100,10 @@ public class RabbitMQConfig {
     public Binding welcomeBinding() {
         return BindingBuilder.bind(welcomeQueue()).to(emailExchange()).with(props.getRoutingKeys().getWelcome());
     }
+
+    @Bean
+    public Binding inviteBinding() {
+        return BindingBuilder.bind(inviteQueue()).to(emailExchange()).with(props.getRoutingKeys().getInvite());
+    }
+
 }

@@ -1,5 +1,6 @@
 package com.example.security.security_app.service;
 
+import com.example.security.security_app.models.EmailMessage;
 import com.example.security.security_app.models.EmailRequest;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -26,10 +27,11 @@ public class EmailService {
 
     public void sendVerificationEmail(String toEmail,
                                       String username,
-                                      String token) {
+                                      String token,
+                                      String emailExpiry) {
         String subject = "Verify your email address";
         String body    = templateService
-                .buildVerificationEmail(username, token, baseUrl);
+                .buildVerificationEmail(username, token, baseUrl, emailExpiry);
 
         sendEmail(EmailRequest.builder()
                 .to(toEmail)
@@ -68,6 +70,26 @@ public class EmailService {
 
         log.info("Welcome email sent to: {}", toEmail);
     }
+
+    public void sendInviteUserEmail(EmailMessage message) {
+        String subject = "You've been invited to join the platform";
+
+        String body = templateService.buildInviteEmail(
+                message.getUsername(),
+                message.getTempPassword(),
+                message.getToken(),
+                message.getInvitedBy(),
+                baseUrl);
+
+        sendEmail(EmailRequest.builder()
+                .to(message.getToEmail())
+                .subject(subject)
+                .body(body)
+                .build());
+    }
+
+
+
 
     private void sendEmail(EmailRequest request) {
         try {

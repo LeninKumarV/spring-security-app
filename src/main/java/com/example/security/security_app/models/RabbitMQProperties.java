@@ -20,6 +20,7 @@ public class RabbitMQProperties {
         private String verification;
         private String reset;
         private String welcome;
+        private String invite;
     }
 
     @Getter
@@ -28,5 +29,6 @@ public class RabbitMQProperties {
         private String verification;
         private String reset;
         private String welcome;
+        private String invite;
     }
 }

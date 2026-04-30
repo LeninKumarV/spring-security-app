@@ -1,10 +1,7 @@
 package com.example.security.security_app.service;
 
 import com.example.security.security_app.entity.User;
-import com.example.security.security_app.models.JwtResponse;
-import com.example.security.security_app.models.LoginRequest;
-import com.example.security.security_app.models.RegisterRequest;
-import com.example.security.security_app.models.UserResponse;
+import com.example.security.security_app.models.*;
 import com.example.security.security_app.repositories.UserRepository;
 import com.example.security.security_app.security.JwtUtils;
 import jakarta.validation.Valid;
@@ -16,12 +13,15 @@ import org.springframework.security.authentication.*;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -85,6 +85,11 @@ public class AuthService {
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new DisabledException("Account is inactive");
         }
+        if (!Boolean.TRUE.equals(user.getIsVerified())) {
+            throw new DisabledException(
+                    "Email not verified — "
+                            + "please check your inbox and verify your email");
+        }
 
         // Authenticate
         try {
@@ -102,7 +107,7 @@ public class AuthService {
                 user.setIsLocked(true);
                 user.setLockTime(LocalDateTime.now());
                 userRepository.save(user);
-                throw new LockedException("Account locked after 5 failed attempts");
+                throw new LockedException("Account locked after 3 failed attempts");
             }
 
             userRepository.save(user);
@@ -176,4 +181,114 @@ public class AuthService {
                 .build();
     }
 
+    public void verifyEmail(String token) {
+
+        if (!StringUtils.hasText(token)) {
+            throw new IllegalArgumentException(
+                    "Verification token is required");
+        }
+
+        User user = userRepository.findByVerificationToken(token)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Invalid verification token — "
+                                + "link may have already been used"));
+
+        if (Boolean.TRUE.equals(user.getIsDeleted())) {
+            throw new DisabledException(
+                    "Account no longer exists");
+        }
+
+        if (Boolean.TRUE.equals(user.getIsVerified())) {
+            throw new IllegalStateException(
+                    "Email already verified — please login");
+        }
+
+        if (user.getVerificationTokenExpiry() == null) {
+            throw new IllegalArgumentException(
+                    "Verification token expiry is missing");
+        }
+
+        if (!user.getVerificationTokenExpiry()
+                .isAfter(LocalDateTime.now())) {
+
+            String newToken = UUID.randomUUID().toString();
+            user.setVerificationToken(newToken);
+            user.setVerificationTokenExpiry(
+                    LocalDateTime.now().plusMinutes(1));
+            userRepository.save(user);
+
+            emailPublisher.publishVerificationEmail(
+                    user.getEmail(),
+                    user.getUsername(),
+                    newToken,
+                    "1 Minutes"
+            );
+
+            System.out.println(user.toString());
+
+            throw new IllegalArgumentException(
+                    "Link expired — new link sent to "
+                            + user.getEmail());
+        }
+
+        user.setIsVerified(true);
+        user.setIsActive(true);
+        user.setVerificationToken(null);
+        user.setVerificationTokenExpiry(null);
+        userRepository.save(user);
+
+        log.info("Email verified for: {}", user.getEmail());
+
+        emailPublisher.sendWelcome(
+                user.getEmail(),
+                user.getFirstName());
+    }
+
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void inviteUser(RegisterRequest request) {
+
+        // Check already exists
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new IllegalArgumentException("Username already exists" + request.getUsername());
+        }
+
+        // Generate temp password
+        String tempPassword = UUID.randomUUID().toString()
+                .substring(0, 8) + "@Tmp";
+
+        // Create user with temp password
+        User user = User.builder()
+                .email(request.getEmail())
+                .username(request.getUsername())         // email as username initially
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .password(passwordEncoder.encode(tempPassword))
+                .roles(CollectionUtils.isEmpty(request.getRoles()) ? Set.of("ROLE_USER")  :
+                        request.getRoles())
+                .isActive(true)
+                .isVerified(false)                   // must verify email
+                .isLocked(false)
+                .isDeleted(false)
+                .failedAttempt(0)
+                .verificationToken(UUID.randomUUID().toString())
+                .verificationTokenExpiry(
+                        LocalDateTime.now().plusMinutes(1)) // 48hr to accept invite
+                .modifiedBy(UserContext.get() != null
+                        ? UserContext.get().getUserName()
+                        : "system")
+                .build();
+
+        userRepository.save(user);
+
+        // Push invite email to queue
+        emailPublisher.publishInviteEmail(
+                user.getEmail(),
+                user.getUsername(),
+                tempPassword,
+                user.getVerificationToken());
+
+        log.info("User invited: {} by admin: {}",
+                request.getEmail(), UserContext.get().getUserName());
+    }
 }
