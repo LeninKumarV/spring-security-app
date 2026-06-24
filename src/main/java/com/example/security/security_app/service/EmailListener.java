@@ -27,8 +27,14 @@ public class EmailListener {
     }
 
     @RabbitListener(queues = "${app.rabbitmq.queues.reset}")
-    public void handleReset(EmailRequest message) {
-        log.info("Password reset email received for: {}", message.getTo());
+    public void handleReset(EmailMessage message) {
+        log.info("Password reset email received for: {}", message.getToEmail());
+        try{
+            emailService.sendPasswordResetEmail(message.getToEmail(), message.getUsername(), message.getToken());
+        }
+        catch (Exception e){
+            log.info("Got error while reset the password for {} {}", message.getToEmail(), e.getMessage());
+        }
     }
 
     @RabbitListener(queues = "${app.rabbitmq.queues.welcome}")

@@ -1,6 +1,7 @@
 package com.example.security.security_app.security;
 
 import com.example.security.security_app.models.UserContext;
+import com.example.security.security_app.service.TokenBlacklistService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -16,6 +17,7 @@ import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.token.TokenService;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -35,6 +37,7 @@ public class UserSecurityContextFilter extends OncePerRequestFilter {
     private String secretKey;
 
     private final CustomUserDetailsService userDetailsService;
+    private final TokenBlacklistService blacklistService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -46,6 +49,24 @@ public class UserSecurityContextFilter extends OncePerRequestFilter {
 
             // Only process if token exists and is valid
             if (token != null && isTokenValid(token)) {
+
+                boolean blacklisted = false;
+                try {
+                    blacklisted = blacklistService
+                            .isBlacklisted(token);
+                } catch (Exception e) {
+                    log.error("Blacklist check failed — " +
+                            "proceeding: {}", e.getMessage());
+                }
+
+                // Check blacklist before processing
+                if (blacklisted) {
+                    log.warn("Blacklisted token attempt");
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.getWriter()
+                            .write("Token has been invalidated — please login again");
+                    return;
+                }
 
                 Claims claims = parseClaims(token); // parse once, reuse
 

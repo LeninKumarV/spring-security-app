@@ -4,6 +4,7 @@ import com.example.security.security_app.entity.User;
 import com.example.security.security_app.models.*;
 import com.example.security.security_app.repositories.UserRepository;
 import com.example.security.security_app.security.JwtUtils;
+import io.jsonwebtoken.Claims;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtils             jwtUtils;
     private final EmailPublisher        emailPublisher;
-
+    private final TokenBlacklistService blacklistService;
 
     @Transactional
     public UserResponse register(@Valid RegisterRequest request) {
@@ -124,14 +125,14 @@ public class AuthService {
         // Generate tokens
         String accessToken  = jwtUtils.generateAccessToken(
                 user.getUsername(), user.getRoles());
-//        String refreshToken = jwtUtils.generateRefreshToken(
-//                user.getUsername());
+        String refreshToken = jwtUtils.generateRefreshToken(
+                user.getUsername());
 
         log.info("User logged in: {}", user.getUsername());
 
         return JwtResponse.builder()
                 .accessToken(accessToken)
-//                .refreshToken(refreshToken)
+                .refreshToken(refreshToken)
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .roles(user.getRoles())
@@ -139,23 +140,51 @@ public class AuthService {
     }
 
 
-    public JwtResponse refresh(@NotNull String refreshToken) {
+    public JwtResponse refresh(String refreshToken) {
+
+        if (!StringUtils.hasText(refreshToken)) {
+            throw new AccessDeniedException(
+                    "Refresh token is required");
+        }
+
         if (!jwtUtils.isTokenValid(refreshToken)) {
-            throw new AccessDeniedException("Invalid or expired refresh token");
+            throw new AccessDeniedException(
+                    "Refresh token expired — please login again");
+        }
+
+        if (blacklistService.isBlacklisted(refreshToken)) {
+            throw new AccessDeniedException(
+                    "Refresh token invalidated — please login again");
         }
 
         String username = jwtUtils.extractUsername(refreshToken);
+
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        "User not found"));
 
+        if (Boolean.TRUE.equals(user.getIsDeleted())) {
+            throw new DisabledException("Account no longer exists");
+        }
+        if (Boolean.TRUE.equals(user.getIsLocked())) {
+            throw new LockedException("Account is locked");
+        }
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new DisabledException("Account is inactive");
+        }
+
+        // Generate new access token
         String newAccessToken = jwtUtils.generateAccessToken(
-                user.getUsername(), user.getRoles());
+                user.getUsername(),
+                user.getRoles());
 
+        log.info("Access token refreshed for: {}", username);
+
+        // Return new access token
         return JwtResponse.builder()
                 .accessToken(newAccessToken)
-                .refreshToken(refreshToken)
+                .refreshToken(refreshToken) // reuse same refresh token
                 .username(user.getUsername())
-                .email(user.getEmail())
                 .roles(user.getRoles())
                 .build();
     }
@@ -290,5 +319,96 @@ public class AuthService {
 
         log.info("User invited: {} by admin: {}",
                 request.getEmail(), UserContext.get().getUserName());
+    }
+
+    public void forgotPassword(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        "User not found"));
+
+        String token = UUID.randomUUID().toString();
+        user.setResetToken(token);
+        user.setResetTokenExpiry(LocalDateTime.now().plusHours(1));
+        userRepository.save(user);
+
+        emailPublisher.publishPasswordResetEmail(
+                user.getEmail(),
+                user.getUsername(),
+                token);
+    }
+
+    public void resetPassword(String token, String newPassword) {
+        User user = userRepository.findByResetToken(token)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Invalid reset token"));
+
+        if (user.getResetTokenExpiry()
+                .isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException(
+                    "Reset token expired — request a new one");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setResetToken(null);
+        user.setResetTokenExpiry(null);
+        user.setPasswordChangedAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    public void logout(String accessToken, String refreshToken) {
+
+        if (StringUtils.hasText(accessToken)) {
+            try {
+                Claims claims = jwtUtils
+                        .parseClaimsIgnoreExpiry(accessToken);
+
+                long expiry    = claims.getExpiration().getTime();
+                long now       = System.currentTimeMillis();
+                long remaining = expiry - now;
+
+                if (remaining > 0) {
+                    // token still valid — blacklist remaining time
+                    blacklistService.blacklistToken(
+                            accessToken, remaining);
+                } else {
+                    // already expired — blacklist for small buffer
+                    blacklistService.blacklistToken(
+                            accessToken, 60000); // 1 min buffer
+                }
+
+                log.info("Access token blacklisted");
+
+            } catch (Exception e) {
+                log.warn("Could not blacklist access token: {}",
+                        e.getMessage());
+            }
+        }
+
+        if (StringUtils.hasText(refreshToken)) {
+            System.out.println("Refresh token blacklisted Check");
+            try {
+                Claims claims = jwtUtils
+                        .parseClaimsIgnoreExpiry(refreshToken);
+
+                long expiry    = claims.getExpiration().getTime();
+                long now       = System.currentTimeMillis();
+                long remaining = expiry - now;
+
+                if (remaining > 0) {
+                    blacklistService.blacklistToken(
+                            refreshToken, remaining);
+                } else {
+                    // already expired — blacklist for small buffer
+                    blacklistService.blacklistToken(
+                            refreshToken, 60000); // 1 min buffer
+                }
+
+                log.info("Refresh token blacklisted");
+
+            } catch (Exception e) {
+                log.warn("Could not blacklist refresh token: {}",
+                        e.getMessage());
+            }
+        }
     }
 }
