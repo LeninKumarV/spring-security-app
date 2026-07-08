@@ -37,38 +37,6 @@ public class AuthService {
     private final EmailPublisher        emailPublisher;
     private final TokenBlacklistService blacklistService;
 
-    @Transactional
-    public UserResponse register(@Valid RegisterRequest request) {
-
-        // Duplicate checks
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new IllegalArgumentException("Username already exists");
-        }
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email already exists");
-        }
-
-        User user = User.builder()
-                .username(request.getUsername())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .roles(CollectionUtils.isEmpty(request.getRoles()) ? Set.of("ROLE_USER")  :
-                        request.getRoles())
-                .isActive(true)
-                .isVerified(false)
-                .isLocked(false)
-                .isDeleted(false)
-                .failedAttempt(0)
-                .build();
-
-        User saved = userRepository.save(user);
-        log.info("User registered: {}", saved.getUsername());
-        emailPublisher.sendWelcome(request.getEmail(), request.getUsername());
-        return toResponse(saved);
-    }
-
     public JwtResponse login(@Valid LoginRequest request) {
 
         // Fetch user first

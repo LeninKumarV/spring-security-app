@@ -1,5 +1,6 @@
 package com.example.security.security_app.controllers;
 
+import com.example.security.security_app.models.NoteRequest;
 import com.example.security.security_app.models.NoteVO;
 import com.example.security.security_app.service.NotesService;
 import lombok.RequiredArgsConstructor;
@@ -15,23 +16,22 @@ public class NotesController {
 
     private final NotesService noteService;
 
-    @PostMapping
-    public NoteVO createNote(@RequestBody String content) {
-        return noteService.createNoteForUser(content);
+    @PostMapping("/save")
+    public NoteVO createNote(@RequestBody NoteRequest noteRequest) {
+        return noteService.createNoteForUser(noteRequest);
     }
 
-    @GetMapping
+    @GetMapping("get/all")
     public List<NoteVO> getUserNotes() {
         return noteService.getNotesForUser();
     }
 
-    @PutMapping("/{noteId}")
-    public NoteVO updateNote(@PathVariable UUID noteId,
-                           @RequestBody String content) {
-        return noteService.updateNoteForUser(noteId, content);
+    @PutMapping("update")
+    public NoteVO updateNote(@RequestBody NoteRequest noteRequest) {
+        return noteService.updateNoteForUser(noteRequest);
     }
 
-    @DeleteMapping("/{noteId}")
+    @DeleteMapping("delete/{noteId}")
     public void deleteNote(@PathVariable UUID noteId) {
         noteService.deleteNoteForUser(noteId);
     }

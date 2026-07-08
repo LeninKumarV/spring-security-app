@@ -1,6 +1,7 @@
 package com.example.security.security_app.security;
 
 import com.example.security.security_app.models.UserContext;
+import com.example.security.security_app.repositories.UserRepository;
 import com.example.security.security_app.service.TokenBlacklistService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -38,6 +39,7 @@ public class UserSecurityContextFilter extends OncePerRequestFilter {
 
     private final CustomUserDetailsService userDetailsService;
     private final TokenBlacklistService blacklistService;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -69,6 +71,14 @@ public class UserSecurityContextFilter extends OncePerRequestFilter {
                 }
 
                 Claims claims = parseClaims(token); // parse once, reuse
+
+                if(!userRepository.isUserActiveAndUnlocked(extractUsername(claims))){
+                    log.warn("User is not active or unlocked");
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.getWriter()
+                            .write("User is not active or has been locked");
+                    return;
+                }
 
                 // Build UserContext
                 UserContext ctx = UserContext.builder()

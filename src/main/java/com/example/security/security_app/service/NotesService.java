@@ -1,6 +1,7 @@
 package com.example.security.security_app.service;
 
 import com.example.security.security_app.entity.Notes;
+import com.example.security.security_app.models.NoteRequest;
 import com.example.security.security_app.models.NoteVO;
 import com.example.security.security_app.models.UserContext;
 import com.example.security.security_app.repositories.NotesRepository;
@@ -18,33 +19,33 @@ public class NotesService {
 
     public List<NoteVO> getNotesForUser() {
         String username = UserContext.get().getUserName();
-        return notesRepository.findByOwnerUsername(username)
+        return notesRepository.findActiveNotesByOwner(username)
                 .stream()
                 .map(this::mapToVO)
                 .toList();
     }
 
-    public NoteVO createNoteForUser(String content) {
+    public NoteVO createNoteForUser(NoteRequest content) {
         String username = UserContext.get().getUserName();
         Notes notes = Notes.builder()
                 .ownerUsername(username)
-                .content(content)
+                .content(content.getContent())
                 .build();
 
         Notes saved = notesRepository.save(notes);
         return mapToVO(saved);
     }
 
-    public NoteVO updateNoteForUser(UUID noteId, String content) {
+    public NoteVO updateNoteForUser(NoteRequest content) {
         String username = UserContext.get().getUserName();
-        Notes notes = notesRepository.findById(noteId)
+        Notes notes = notesRepository.findActiveNoteForUpdates(content.getNoteId())
                 .orElseThrow(() -> new RuntimeException("Note not found"));
 
         if (!notes.getOwnerUsername().equals(username)) {
             throw new RuntimeException("Unauthorized to update this note");
         }
 
-        notes.setContent(content);
+        notes.setContent(content.getContent());
         Notes updated = notesRepository.save(notes);
 
         return mapToVO(updated);
@@ -52,14 +53,14 @@ public class NotesService {
 
     public void deleteNoteForUser(UUID noteId) {
         String username = UserContext.get().getUserName();
-        Notes notes = notesRepository.findById(noteId)
+        Notes notes = notesRepository.findActiveNoteForUpdates(noteId)
                 .orElseThrow(() -> new RuntimeException("Note not found"));
 
         if (!notes.getOwnerUsername().equals(username)) {
             throw new RuntimeException("Unauthorized to delete this note");
         }
-
-        notesRepository.delete(notes);
+        notes.setIsActive(false);
+        notesRepository.save(notes);
     }
 
     private NoteVO mapToVO(Notes notes) {
